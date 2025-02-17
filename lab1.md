@@ -243,7 +243,7 @@ When you define a primary key in Flink SQL, you specify one or more columns in a
 Let's create a new table to deduplicate records from our customers stream.
 
 ```sql
-CREATE TABLE shoe_customers_keyed(
+CREATE TABLE <PREFIX>_shoe_customers_keyed(
   customer_id STRING,
   first_name STRING,
   last_name STRING,
