@@ -80,9 +80,9 @@ Join orders with keyed customer records (Regular Join with Keyed Table):
 ```
 SELECT order_id, shoe_orders.`$rowtime`, first_name, last_name
 FROM shoe_orders
-INNER JOIN shoe_customers_keyed 
-ON shoe_orders.customer_id = shoe_customers_keyed.customer_id
-WHERE shoe_customers_keyed.customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+INNER JOIN <PREFIX>_shoe_customers_keyed 
+ON shoe_orders.customer_id = <PREFIX>_shoe_customers_keyed.customer_id
+WHERE <PREFIX>_shoe_customers_keyed.customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
 NOTE: Look at the number of rows returned. There are no duplicates! This is because we have only one customer record for each customer id.
 
@@ -90,9 +90,9 @@ Join orders with keyed customer records at the time when order was created (Temp
 ```
 SELECT order_id, shoe_orders.`$rowtime`, first_name, last_name
 FROM shoe_orders
-INNER JOIN shoe_customers_keyed FOR SYSTEM_TIME AS OF shoe_orders.`$rowtime`
-ON shoe_orders.customer_id = shoe_customers_keyed.customer_id
-WHERE shoe_customers_keyed.customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+INNER JOIN <PREFIX>_shoe_customers_keyed FOR SYSTEM_TIME AS OF shoe_orders.`$rowtime`
+ON shoe_orders.customer_id = <PREFIX>_shoe_customers_keyed.customer_id
+WHERE <PREFIX>_shoe_customers_keyed.customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
 NOTE 1: There might be empty result set if keyed customers tables was created after the order records were ingested in the shoe_orders topic. 
 
@@ -104,7 +104,7 @@ We will join data from: Order, Customer, Product tables together in a single SQL
 
 Create a new table for `Order <-> Customer <-> Product` join result:
 ```
-CREATE TABLE shoe_order_customer_product(
+CREATE TABLE <PREFIX>_shoe_order_customer_product(
   order_id INT,
   first_name STRING,
   last_name STRING,
@@ -120,7 +120,7 @@ CREATE TABLE shoe_order_customer_product(
 
 Insert joined data from 3 tables into the new table:
 ```
-INSERT INTO shoe_order_customer_product(
+INSERT INTO <PREFIX>_shoe_order_customer_product(
   order_id,
   first_name,
   last_name,
@@ -140,15 +140,15 @@ SELECT
   sp.rating
 FROM 
   shoe_orders so
-  INNER JOIN shoe_customers_keyed sc 
+  INNER JOIN <PREFIX>_shoe_customers_keyed sc 
     ON so.customer_id = sc.customer_id
-  INNER JOIN shoe_products_keyed sp
+  INNER JOIN <PREFIX>_shoe_products_keyed sp
     ON so.product_id = sp.product_id;
 ```
 
 Verify that the data was joined successfully. 
 ```
-SELECT * FROM shoe_order_customer_product;
+SELECT * FROM <PREFIX>_shoe_order_customer_product;
 ```
 
 ### 5. Loyalty Levels Calculation
@@ -166,7 +166,7 @@ SELECT
     WHEN SUM(sale_price) > 6000 THEN 'BRONZE'
     ELSE 'CLIMBING'
   END AS rewards_level
-FROM shoe_order_customer_product
+FROM <PREFIX>_shoe_order_customer_product
 GROUP BY email;
 ```
 NOTE: You might need to change the loyalty level numbers according to the amount of the data you have already ingested.
@@ -174,7 +174,7 @@ NOTE: You might need to change the loyalty level numbers according to the amount
 
 Prepare the table for loyalty levels:
 ```
-CREATE TABLE shoe_loyalty_levels(
+CREATE TABLE <PREFIX>_shoe_loyalty_levels(
   email STRING,
   total BIGINT,
   rewards_level STRING,
@@ -184,7 +184,7 @@ CREATE TABLE shoe_loyalty_levels(
 
 Now you can calculate loyalty levels and store the results in the new table.
 ```
-INSERT INTO shoe_loyalty_levels(
+INSERT INTO <PREFIX>_shoe_loyalty_levels(
  email,
  total,
  rewards_level)
@@ -197,13 +197,13 @@ SELECT
     WHEN SUM(sale_price) > 600000 THEN 'BRONZE'
     ELSE 'CLIMBING'
   END AS rewards_level
-FROM shoe_order_customer_product
+FROM <PREFIX>_shoe_order_customer_product
 GROUP BY email;
 ```
 
 Verify your results:
 ```
-SELECT * FROM shoe_loyalty_levels;
+SELECT * FROM <PREFIX>_shoe_loyalty_levels;
 ```
 
 ### 6. Promotions Calculation
@@ -217,7 +217,7 @@ SELECT
    COUNT(*) AS total,
    (COUNT(*) % 10) AS sequence,
    (COUNT(*) % 10) = 0 AS next_one_free
- FROM shoe_order_customer_product
+ FROM <PREFIX>_shoe_order_customer_product
  WHERE brand = 'Jones-Stokes'
  GROUP BY email;
  ```
@@ -229,7 +229,7 @@ SELECT
      email,
      COLLECT(brand) AS products,
      'bundle_offer' AS promotion_name
-  FROM shoe_order_customer_product
+  FROM <PREFIX>_shoe_order_customer_product
   WHERE brand IN ('Braun-Bruen', 'Will Inc')
   GROUP BY email
   HAVING COUNT(DISTINCT brand) = 2 AND COUNT(brand) > 10;
@@ -240,7 +240,7 @@ Now we are ready to store the results for all calculated promotions.
 
 Create a table for promotion notifications:
 ```
-CREATE TABLE shoe_promotions(
+CREATE TABLE <PREFIX>_shoe_promotions(
   email STRING,
   promotion_name STRING,
   PRIMARY KEY (email) NOT ENFORCED
@@ -253,20 +253,20 @@ Write both calculated promotions in a single statement set to the `shoe_promotio
 EXECUTE STATEMENT SET 
 BEGIN
 
-INSERT INTO shoe_promotions
+INSERT INTO <PREFIX>_shoe_promotions
 SELECT
    email,
    'next_free' AS promotion_name
-FROM shoe_order_customer_product
+FROM <PREFIX>_shoe_order_customer_product
 WHERE brand = 'Jones-Stokes'
 GROUP BY email
 HAVING COUNT(*) % 10 = 0;
 
-INSERT INTO shoe_promotions
+INSERT INTO <PREFIX>_shoe_promotions
 SELECT
      email,
      'bundle_offer' AS promotion_name
-  FROM shoe_order_customer_product
+  FROM <PREFIX>_shoe_order_customer_product
   WHERE brand IN ('Braun-Bruen', 'Will Inc')
   GROUP BY email
   HAVING COUNT(DISTINCT brand) = 2 AND COUNT(brand) > 10;
@@ -277,7 +277,7 @@ END;
 
 Check if all promotion notifications are stored correctly.
 ```
-SELECT * from shoe_promotions;
+SELECT * from <PREFIX>_shoe_promotions;
 ```
 
 All data products are created now and events are in motion. Visit the brand new data portal to get all information you need and query the data. Give it a try!
