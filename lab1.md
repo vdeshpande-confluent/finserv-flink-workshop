@@ -240,7 +240,7 @@ NOTE: You can find more information about Flink Window aggregations [here.](http
 
 When you define a primary key in Flink SQL, you specify one or more columns in a table that uniquely identify each row. This is particularly important in streaming scenarios, where state must be correctly maintained.
 
-Let's create a new table to deduplicate records from our customers stream.
+Let's create a new table to deduplicate records from our customers' stream. Before creating the table, please attach a unique <PREFIX> to ensure all participants can work within the same cluster without conflicts.
 
 ```sql
 CREATE TABLE <PREFIX>_shoe_customers_keyed(
@@ -256,7 +256,7 @@ CREATE TABLE <PREFIX>_shoe_customers_keyed(
  * PRIMARY KEY (customer_id) NOT ENFORCED specifies the primary key constraint. In Flink SQL, primary keys are currently not enforced by default due to the challenges of ensuring uniqueness across distributed systems. The NOT ENFORCED clause reflects this, indicating that while the primary key is used for optimizations and correct processing, it does not guarantee data uniqueness constraints as a traditional database might.
 
 ```bash
-SHOW CREATE TABLE shoe_customers_keyed;
+SHOW CREATE TABLE <PREFIX>_shoe_customers_keyed;
 ```
 
 We do have a different [changelog.mode](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html#changelog-mode) and a [primary key](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html#primary-key-constraint) constraint. What does this mean?
@@ -266,21 +266,21 @@ NOTE: You can find more information about changelog mode [here.](https://docs.co
 Create a new Flink job to copy customer records from the original table to the new table.
 
 ```sql
-INSERT INTO shoe_customers_keyed
+INSERT INTO <PREFIX>_shoe_customers_keyed
   SELECT id, first_name, last_name, email
     FROM shoe_customers;
 ```
 
 Show the amount of customers in `shoe_customers_keyed`.
 ```
-SELECT COUNT(*) as AMOUNTROWS FROM shoe_customers_keyed;
+SELECT COUNT(*) as AMOUNTROWS FROM <PREFIX>_shoe_customers_keyed;
 ```
 
 Look up one specific customer (change the id if needed):
 
 ```sql
 SELECT * 
- FROM shoe_customers_keyed  
+ FROM <PREFIX>_shoe_customers_keyed  
  WHERE customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
 
@@ -297,7 +297,7 @@ We also need to deduplicate records for our product catalog.
 Prepare a new table that will store unique products only:
 
 ```sql
-CREATE TABLE shoe_products_keyed(
+CREATE TABLE <PREFIX>_shoe_products_keyed(
   product_id STRING,
   brand STRING,
   `model` STRING,
@@ -310,7 +310,7 @@ CREATE TABLE shoe_products_keyed(
 Create a new Flink job to copy product data from the original table to the new table. 
 
 ```sql
-INSERT INTO shoe_products_keyed
+INSERT INTO <PREFIX>_shoe_products_keyed
   SELECT id, brand, `name`, sale_price, rating 
     FROM shoe_products;
 ```
@@ -319,7 +319,7 @@ Check if only a single record is returned for some product.
 
 ```sql
 SELECT * 
- FROM shoe_products_keyed  
+ FROM <PREFIX>_shoe_products_keyed  
  WHERE product_id = '0fd15be0-8b95-4f19-b90b-53aabf4c49df';
 ```
 
