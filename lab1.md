@@ -45,9 +45,9 @@ Your Kafka cluster should have three Datagen Source Connectors running. Check if
 
 | Connector Name (can be anything)     |      Topic      | Format |             Template | 
 |--------------------------------------|:---------------:|-------:|---------------------:|
-| **DatagenSourceConnector_products**  |  shoe_products  |   AVRO |            **Shoes** | 
-| **DatagenSourceConnector_customers** | shoe_customers  |   AVRO |  **Shoes customers** | 
-| **DatagenSourceConnector_orders**    |   shoe_orders   |   AVRO |     **Shoes orders** | 
+| **DatagenSourceConnector_products**  |  stock_orders  |   AVRO |            **Trades** | 
+| **DatagenSourceConnector_customers** | stock_prices  |   AVRO |  **Realtime Stock Prices** | 
+| **DatagenSourceConnector_orders**    |   user_profiles   |   AVRO |     **Trade Customers** | 
 
 ## 2. Create Pool
 
@@ -125,7 +125,7 @@ List all Flink Tables (=Kafka topics) in your Confluent Cloud cluster:
 ```
 SHOW TABLES;
 ```
-Do you see tables `shoe_products`, `shoe_customers`, `shoe_orders`?
+Do you see tables `stock_orders`, `stock_prices`, `user_profiles`?
 
 ![image](terraform/img/show_tables.png)
 
@@ -133,9 +133,9 @@ You can add multiple query boxes by clicking the `+` button on the left.
 
 ![image](terraform/img/add-query-box.png)
 
-Understand how the table `shoe_products` was created:
+Understand how the table `stock_orders` was created:
 ```
-SHOW CREATE TABLE shoe_products;
+SHOW CREATE TABLE stock_orders;
 ```
 
 ![image](terraform/img/sqlWorkspace_showCreated.png)
@@ -145,63 +145,63 @@ You can find more information about all parameters  [here.](https://docs.conflue
 ### 5. Select Queries
 Our Flink tables are populated by the Datagen connectors.
 
-Let us first check the table schema for our `shoe_products` catalog. This should be the same as the topic schema in Schema Registry.
+Let us first check the table schema for our `stock_prices` catalog. This should be the same as the topic schema in Schema Registry.
 ```
-DESCRIBE shoe_products;
-```
-
-Let's check if any product records exist in the table.
-```
-SELECT * FROM shoe_products;
+DESCRIBE stock_prices;
 ```
 
-Now check if the `shoe_customers` schema  exists. 
+Let's check if any stock records exist in the table.
 ```
-DESCRIBE shoe_customers;
+SELECT * FROM stock_prices;
 ```
 
-Are there any customers in Texas whose name starts with `B` ?
+Now check if the `user_profiles` schema  exists. 
+```
+DESCRIBE user_profiles;
+```
+
+Are there any users in user_profiles whose last name starts with `B` ?
 ```
 SELECT * FROM shoe_customers
-  WHERE `state` = 'Texas' AND `last_name` LIKE 'B%';
+  WHERE `last_name` LIKE 'B%';
 ```
 
-Check all attributes of the `shoe_orders` table including hidden attributes. This will show regular DESCRIBE and system columns.
+Check all attributes of the `stock_orders` table including hidden attributes. This will show regular DESCRIBE and system columns.
 ```
-DESCRIBE EXTENDED shoe_orders;
+DESCRIBE EXTENDED stock_orders;
 ```
 
 Check the first ten orders for one customer.
 ```
-SELECT order_id, product_id, customer_id, $rowtime
-  FROM shoe_orders
-  WHERE customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a'
+SELECT order_id, symbol, type, quantity, order_time
+  FROM stock_orders
+  WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a'
   LIMIT 10;
 ```
 
 ### 6. Aggregations
 Let's try to run more advanced queries.
 
-First find out the number of customers records and then the number of unique customers.
+First find out the number of user_profile records and then the number of unique users.
 
 ```sql
-SELECT COUNT(id) AS num_customers FROM shoe_customers;
+SELECT COUNT(user_id) AS num_users FROM user_profiles;
 ```
 
 ```sql
-SELECT COUNT(DISTINCT id) AS num_customers FROM shoe_customers;
+SELECT COUNT(DISTINCT user_id) AS num_users FROM user_profiles;
 ```
 
-We can try some basic aggregations with the product catalog records.
-For each shoe brand, find the number of shoe models, the average rating and the maximum model price. 
+We can try some basic aggregations with the stock catalog records.
+For each stock let's detect volatility or price range, find the min and max price for that stock. 
 
 ```sql
-SELECT brand as brand_name, 
-    COUNT(DISTINCT name) as models_by_brand, 
-    ROUND(AVG(rating),2) as avg_rating,
-    MAX(sale_price)/100 as max_price
-FROM shoe_products
-GROUP BY brand;
+SELECT
+  symbol,
+  MIN(price) AS min_price,
+  MAX(price) AS max_price
+FROM stock_prices
+GROUP BY symbol;
 ```
 
 
@@ -209,18 +209,30 @@ NOTE: You can find more information about Flink aggregations functions [here.](h
 
 ### 7. Time Windows
 
-Let's try Flink's time windowing functions for shoe order records.
+Let's try Flink's time windowing functions for stock order records.
 Column names “window_start” and “window_end” are commonly used in Flink's window operations, especially when dealing with event time windows.
 
-Find the amount of orders for one minute intervals (tumbling window aggregation).
+Find the amount of orders for one minute intervals (tumbling window aggregation) for each stock.
 
 ```sql
 SELECT
  window_end,
  COUNT(DISTINCT order_id) AS num_orders
 FROM TABLE(
-   TUMBLE(TABLE shoe_orders, DESCRIPTOR(`$rowtime`), INTERVAL '1' MINUTES))
-GROUP BY window_start, window_end;
+   TUMBLE(TABLE stock_orders, DESCRIPTOR(`$rowtime`), INTERVAL '1' MINUTES))
+GROUP BY window_start, window_end, symbol;
+```
+
+Find the average price in the last 5 minutes for each symbol (tumbling window aggregation) .
+
+```sql
+SELECT
+  symbol,
+  TUMBLE_START(`$rowtime`, INTERVAL '5' MINUTE) AS window_start,
+  AVG(price) AS avg_price
+FROM TABLE(
+   TUMBLE(TABLE stock_prices, DESCRIPTOR(`$rowtime`), INTERVAL '1' MINUTES))
+GROUP BY window_start, window_end, symbol;
 ```
 
 Find the amount of orders for ten minute intervals advanced by five minutes (hopping window aggregation).
@@ -234,29 +246,32 @@ FROM TABLE(
 GROUP BY window_start, window_end;
 ```
 
+
+
 NOTE: You can find more information about Flink Window aggregations [here.](https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.html)
 
 ### 8. Tables with Primary Key 
 
 When you define a primary key in Flink SQL, you specify one or more columns in a table that uniquely identify each row. This is particularly important in streaming scenarios, where state must be correctly maintained.
 
-Let's create a new table to deduplicate records from our customers' stream. Before creating the table, please attach a unique <PREFIX> to ensure all participants can work within the same cluster without conflicts.
+Let's create a new table to deduplicate records from our user profile' stream. Before creating the table, please attach a unique <PREFIX> to ensure all participants can work within the same cluster without conflicts.
 
 ```sql
-CREATE TABLE <PREFIX>_shoe_customers_keyed(
-  customer_id STRING,
-  first_name STRING,
-  last_name STRING,
+CREATE TABLE user_profiles_keyed (
+  user_id STRING,
+  name STRING,
   email STRING,
-  PRIMARY KEY (customer_id) NOT ENFORCED
-  );
+  phone STRING,
+  ssn STRING,
+  PRIMARY KEY (user_id) NOT ENFORCED  -- Simulates materialized lookup
+);
 ```
 
- * customer_id is defined as the primary key
- * PRIMARY KEY (customer_id) NOT ENFORCED specifies the primary key constraint. In Flink SQL, primary keys are currently not enforced by default due to the challenges of ensuring uniqueness across distributed systems. The NOT ENFORCED clause reflects this, indicating that while the primary key is used for optimizations and correct processing, it does not guarantee data uniqueness constraints as a traditional database might.
+ * user_id is defined as the primary key
+ * PRIMARY KEY (user_id) NOT ENFORCED specifies the primary key constraint. In Flink SQL, primary keys are currently not enforced by default due to the challenges of ensuring uniqueness across distributed systems. The NOT ENFORCED clause reflects this, indicating that while the primary key is used for optimizations and correct processing, it does not guarantee data uniqueness constraints as a traditional database might.
 
 ```bash
-SHOW CREATE TABLE <PREFIX>_shoe_customers_keyed;
+SHOW CREATE TABLE user_profiles_keyed;
 ```
 
 We do have a different [changelog.mode](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html#changelog-mode) and a [primary key](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html#primary-key-constraint) constraint. What does this mean?
@@ -266,61 +281,59 @@ NOTE: You can find more information about changelog mode [here.](https://docs.co
 Create a new Flink job to copy customer records from the original table to the new table.
 
 ```sql
-INSERT INTO <PREFIX>_shoe_customers_keyed
+INSERT INTO user_profiles_keyed
   SELECT id, first_name, last_name, email
     FROM shoe_customers;
 ```
 
-Show the amount of customers in `shoe_customers_keyed`.
+Show the amount of users in `user_profiles_keyed`.
 ```
-SELECT COUNT(*) as AMOUNTROWS FROM <PREFIX>_shoe_customers_keyed;
+SELECT COUNT(*) as AMOUNTROWS FROM user_profiles_keyed;
 ```
 
 Look up one specific customer (change the id if needed):
 
 ```sql
 SELECT * 
- FROM <PREFIX>_shoe_customers_keyed  
- WHERE customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+ FROM user_profiles_keyed  
+ WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
 
 Compare it with all customer records for one specific customer:
 
 ```sql
 SELECT *
- FROM shoe_customers
- WHERE id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+ FROM user_profiles
+ WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
 
-We also need to deduplicate records for our product catalog.
+We also need to deduplicate records for our stock price catalog.
 
-Prepare a new table that will store unique products only:
+Prepare a new table that will store unique stock only:
 
 ```sql
-CREATE TABLE <PREFIX>_shoe_products_keyed(
-  product_id STRING,
-  brand STRING,
-  `model` STRING,
-  sale_price INT,
-  rating DOUBLE,
-  PRIMARY KEY (product_id) NOT ENFORCED
-  );
+CREATE TABLE stock_prices_keyed (
+  symbol STRING,
+  price DOUBLE,
+  event_time TIMESTAMP(3),
+  PRIMARY KEY (symbol) NOT ENFORCED  -- Simulates materialized lookup
+);
 ```
 
 Create a new Flink job to copy product data from the original table to the new table. 
 
 ```sql
-INSERT INTO <PREFIX>_shoe_products_keyed
-  SELECT id, brand, `name`, sale_price, rating 
-    FROM shoe_products;
+INSERT INTO stock_prices_keyed
+  SELECT *
+    FROM stock_prices;
 ```
 
-Check if only a single record is returned for some product.
+Check if only a single record is returned for some stock.
 
 ```sql
 SELECT * 
- FROM <PREFIX>_shoe_products_keyed  
- WHERE product_id = '0fd15be0-8b95-4f19-b90b-53aabf4c49df';
+ FROM stock_prices_keyed
+ WHERE symbol = '0fd15be0-8b95-4f19-b90b-53aabf4c49df';
 ```
 
 ### 9. Flink Jobs 
