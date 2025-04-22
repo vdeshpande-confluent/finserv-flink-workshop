@@ -31,34 +31,34 @@ If you left the Flink SQL Workspace or refreshed the page, `catalog` and `databa
 
 ![image](terraform/img/catalog-and-database-dropdown.png)
 
-Find all customer records for one customer and display the timestamps from when the events were ingested in the `shoe_customers` Kafka topic.
+Find all user records for one customer and display the timestamps from when the events were ingested in the `user_profiles` Kafka topic.
 ```
 SELECT id,$rowtime 
-FROM shoe_customers  
+FROM user_profiles  
 WHERE id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
-NOTE: Check the timestamps from when the customer records were generated.
+NOTE: Check the timestamps from when the user records were generated.
 
-Find all orders for one customer and display the timestamps from when the events were ingested in the `shoe_orders` Kafka topic.
+Find all stock_orders for one customer and display the timestamps from when the events were ingested in the `stock_orders` Kafka topic.
 ```
-SELECT order_id, customer_id, $rowtime
-FROM shoe_orders
-WHERE customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+SELECT order_id, order_time,user_id, $rowtime , 
+FROM stock_orders
+WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
 NOTE: Check the timestamps when the orders were generated. This is important for the join operations we will do next.
 
 ### 3. Understand Joins
 Now, we can look at the different types of joins available. 
-We will join `order` records and `customer` records.
+We will join `stock_orders` records and `user_profiles` records.
 
 Join orders with non-keyed customer records (Regular Join). Joining unbounded data streams requires Time-To-Live configuration:
 ```
 SELECT /*+ STATE_TTL('shoe_orders'='6h', 'shoe_customers'='2d') */ 
-order_id, shoe_orders.`$rowtime`, first_name, last_name
-FROM shoe_orders
-INNER JOIN shoe_customers 
-ON shoe_orders.customer_id = shoe_customers.id
-WHERE customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+order_id, stock_orders.`$rowtime`, first_name, last_name
+FROM stock_orders
+INNER JOIN user_profiles 
+ON stock_orders.user_id = user_profiles.user_id
+WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
 ```
 NOTE: Look at the number of rows returned. There are many duplicates!
 
@@ -86,13 +86,20 @@ WHERE <PREFIX>_shoe_customers_keyed.customer_id = 'b523f7f3-0338-4f1f-a951-a387b
 ```
 NOTE: Look at the number of rows returned. There are no duplicates! This is because we have only one customer record for each customer id.
 
-Join orders with keyed customer records at the time when order was created (Temporal Join with Keyed Table):
+Join orders with keyed stock price records at the time when order was created (Temporal Join with Keyed Table):
 ```
-SELECT order_id, shoe_orders.`$rowtime`, first_name, last_name
-FROM shoe_orders
-INNER JOIN <PREFIX>_shoe_customers_keyed FOR SYSTEM_TIME AS OF shoe_orders.`$rowtime`
-ON shoe_orders.customer_id = <PREFIX>_shoe_customers_keyed.customer_id
-WHERE <PREFIX>_shoe_customers_keyed.customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+SELECT
+  o.order_id,
+  o.user_id,
+  o.symbol,
+  o.type,
+  o.quantity,
+  p.price AS executed_price,
+  o.quantity * p.price AS trade_value,
+  o.order_time
+FROM stock_orders AS o
+JOIN stock_prices FOR SYSTEM_TIME AS OF o.order_time AS p
+ON o.symbol = p.symbol;
 ```
 NOTE 1: There might be empty result set if keyed customers tables was created after the order records were ingested in the shoe_orders topic. 
 
@@ -102,7 +109,7 @@ NOTE 2: You can find more information about Temporal Joins with Flink SQL [here.
 We can store the result of a join in a new table. 
 We will join data from: Order, Customer, Product tables together in a single SQL statement.
 
-Create a new table for `Order <-> Customer <-> Product` join result:
+Create a new table for `Stock Orders <-> Users Profile <-> Stock Prices` join result:
 ```
 CREATE TABLE <PREFIX>_shoe_order_customer_product(
   order_id INT,
