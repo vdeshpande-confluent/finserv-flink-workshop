@@ -1,4 +1,3 @@
-Got it — you're absolutely right. We should **first perform the temporal join** of `stock_orders` with `stock_prices` to fetch the **price at the time of the order**, and then **derive holdings and valuations** from that enriched data (not from current prices). Let's refactor **Lab 2** with this logic as the foundation.
 
 ---
 
@@ -140,4 +139,3 @@ GROUP BY symbol, TUMBLE(order_time, INTERVAL '1' HOUR);
 
 ---
 
-Let me know if you'd like this as an updated `lab2.md`, or want to move on to **Lab 3** (Fraud, PII alerting, compliance signals).
