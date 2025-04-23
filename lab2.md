@@ -31,60 +31,66 @@ If you left the Flink SQL Workspace or refreshed the page, `catalog` and `databa
 
 ![image](terraform/img/catalog-and-database-dropdown.png)
 
-Find all user records for one customer and display the timestamps from when the events were ingested in the `user_profiles` Kafka topic.
+Find all user records for one user_id and display the timestamps from when the events were ingested in the `user_profiles` Kafka topic.
 ```
-SELECT id,$rowtime 
+SELECT user_id,$rowtime 
 FROM user_profiles  
-WHERE id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+WHERE user_id = 'User9';
 ```
 NOTE: Check the timestamps from when the user records were generated.
 
 Find all stock_orders for one customer and display the timestamps from when the events were ingested in the `stock_orders` Kafka topic.
 ```
-SELECT order_id, order_time,user_id, $rowtime , 
+SELECT order_id ,$rowtime
 FROM stock_orders
-WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+WHERE user_id = 'User9';
 ```
 NOTE: Check the timestamps when the orders were generated. This is important for the join operations we will do next.
 
+Find all stock prices for one symbol and display the timestamps from when the events were ingested in the `stock_prices` Kafka topic.
+```
+SELECT symbol,$rowtime 
+FROM stock_prices  
+WHERE symbol = 'GOOG';
+```
 ### 3. Understand Joins
 Now, we can look at the different types of joins available. 
-We will join `stock_orders` records and `user_profiles` records.
+We will join `stock_orders` records and `stock_prices` records.
 
-Join orders with non-keyed customer records (Regular Join). Joining unbounded data streams requires Time-To-Live configuration:
+Join stock orders with non-keyed stock prices records (Regular Join). Joining unbounded data streams requires Time-To-Live configuration:
 ```
-SELECT /*+ STATE_TTL('shoe_orders'='6h', 'shoe_customers'='2d') */ 
-order_id, stock_orders.`$rowtime`, first_name, last_name
-FROM stock_orders
-INNER JOIN user_profiles 
-ON stock_orders.user_id = user_profiles.user_id
-WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+SELECT /*+ STATE_TTL('sp'='6h', 'so'='2d') */  
+order_id, so.`$rowtime`, so.symbol
+FROM stock_orders as so
+INNER JOIN stock_prices as sp
+ON so.symbol = sp.symbol
+WHERE so.symbol  = 'GOOG';
 ```
-NOTE: Look at the number of rows returned. There are many duplicates!
+NOTE: Look at the number of rows returned for each order. There are many duplicates! Ideally we just want one correct price attached for every order.
 
 Joining infinite data streams can cause your state to grow indefinitely. Look at Time-to-live to limit the state size [here.](https://docs.confluent.io/cloud/current/flink/operate-and-deploy/best-practices.html#implement-state-time-to-live-ttl)
 TTL Hints configuraiton examples [More info here.](https://docs.confluent.io/cloud/current/flink/reference/statements/hints.html)
 
-Join orders with non-keyed customer records in some time windows (Interval Join):
-Check if there is a customer record that was created within 10 minutes after the order was created. Did customer tried to change his email after placing the order?
+Join orders with non-keyed prices records in some time windows (Interval Join):
+Check if there is a stock price record that was created within 10 minutes after the order was created. Did price changed after/before placing the order?
 ```
-SELECT order_id, shoe_orders.`$rowtime` AS order_time, shoe_customers.`$rowtime` AS customer_record_time, email
-FROM shoe_orders
-INNER JOIN shoe_customers
-ON shoe_orders.customer_id = shoe_customers.id
-WHERE customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a' AND
-  shoe_orders.`$rowtime` BETWEEN shoe_customers.`$rowtime` - INTERVAL '10' MINUTES AND shoe_customers.`$rowtime`;
+SELECT order_id, so.`$rowtime` AS order_time, sp.`$rowtime` AS price_change_record_time , so.symbol
+FROM stock_orders as so
+INNER JOIN stock_prices as sp
+ON so.symbol = sp.symbol
+WHERE order_id = 955 AND
+  so.`$rowtime` BETWEEN sp.`$rowtime` - INTERVAL '10' MINUTES AND sp.`$rowtime`;
 ```
 
-Join orders with keyed customer records (Regular Join with Keyed Table):
+Join orders with keyed stock price records (Regular Join with Keyed Table):
 ```
-SELECT order_id, shoe_orders.`$rowtime`, first_name, last_name
-FROM shoe_orders
-INNER JOIN <PREFIX>_shoe_customers_keyed 
-ON shoe_orders.customer_id = <PREFIX>_shoe_customers_keyed.customer_id
-WHERE <PREFIX>_shoe_customers_keyed.customer_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+SELECT order_id, so.`$rowtime`,symbol,user_id,side,quantity,order_type
+FROM stock_orders as so
+INNER JOIN stock_prices_keyed as spk
+ON so.symbol = spk.symbol
+WHERE so.order_id = 955;
 ```
-NOTE: Look at the number of rows returned. There are no duplicates! This is because we have only one customer record for each customer id.
+NOTE: Look at the number of rows returned. There are no duplicates! This is because we have only one price record for each symbol.
 
 Join orders with keyed stock price records at the time when order was created (Temporal Join with Keyed Table):
 ```
@@ -92,199 +98,117 @@ SELECT
   o.order_id,
   o.user_id,
   o.symbol,
-  o.type,
   o.quantity,
   p.price AS executed_price,
-  o.quantity * p.price AS trade_value,
-  o.order_time
-FROM stock_orders AS o
-JOIN stock_prices FOR SYSTEM_TIME AS OF o.order_time AS p
+  o.quantity * p.price AS trade_value FROM stock_orders AS o
+JOIN stock_prices_keyed FOR SYSTEM_TIME AS OF o.`$rowtime` AS p
 ON o.symbol = p.symbol;
 ```
-NOTE 1: There might be empty result set if keyed customers tables was created after the order records were ingested in the shoe_orders topic. 
+NOTE 1: There might be empty result set if keyed customers tables was created after the order records were ingested in the stock_orders topic. 
 
 NOTE 2: You can find more information about Temporal Joins with Flink SQL [here.](https://docs.confluent.io/cloud/current/flink/reference/queries/joins.html#temporal-joins)
 
 ### 4. Data Enrichment
 We can store the result of a join in a new table. 
-We will join data from: Order, Customer, Product tables together in a single SQL statement.
+We will join data from: User Profile , Order, Prices tables together in a single SQL statement.
 
 Create a new table for `Stock Orders <-> Users Profile <-> Stock Prices` join result:
 ```
-CREATE TABLE <PREFIX>_shoe_order_customer_product(
-  order_id INT,
-  first_name STRING,
-  last_name STRING,
-  email STRING,
-  brand STRING,
-  `model` STRING,
-  sale_price INT,
-  rating DOUBLE
-)WITH (
-    'changelog.mode' = 'retract'
-);
-```
-
-Insert joined data from 3 tables into the new table:
-```
-INSERT INTO <PREFIX>_shoe_order_customer_product(
-  order_id,
-  first_name,
-  last_name,
-  email,
-  brand,
-  `model`,
-  sale_price,
-  rating)
+CREATE TABLE stock_price_data_product AS  
 SELECT
-  so.order_id,
-  sc.first_name,
-  sc.last_name,
-  sc.email,
-  sp.brand,
-  sp.`model`,
-  sp.sale_price,
-  sp.rating
-FROM 
-  shoe_orders so
-  INNER JOIN <PREFIX>_shoe_customers_keyed sc 
-    ON so.customer_id = sc.customer_id
-  INNER JOIN <PREFIX>_shoe_products_keyed sp
-    ON so.product_id = sp.product_id;
+  o.order_id,
+  o.user_id,
+  u.name AS user_name,
+  u.email AS user_email,
+  u.phone AS user_phone,
+  o.symbol,
+  o.quantity,
+  p.price AS executed_price,
+  o.quantity * p.price AS trade_value
+FROM stock_orders AS o
+JOIN stock_prices_keyed FOR SYSTEM_TIME AS OF o.`$rowtime` AS p
+  ON o.symbol = p.symbol
+JOIN user_profiles_keyed FOR SYSTEM_TIME AS OF o.`$rowtime` AS u
+  ON o.user_id = u.user_id;
 ```
 
 Verify that the data was joined successfully. 
 ```
-SELECT * FROM <PREFIX>_shoe_order_customer_product;
+SELECT * FROM stock_price_data_productt;
 ```
 
-### 5. Loyalty Levels Calculation
+### 5. Derive User Holdings (from executed trades) 💼
 
-Now we are ready to calculate loyalty levels for our customers.
+Now we are ready to calculate net position per user per stock.
 
-First let's see which loyalty levels are being calculated:
+Let's see :
 ```
 SELECT
-  email,
-  SUM(sale_price) AS total,
-  CASE
-    WHEN SUM(sale_price) > 800000 THEN 'GOLD'
-    WHEN SUM(sale_price) > 70000 THEN 'SILVER'
-    WHEN SUM(sale_price) > 6000 THEN 'BRONZE'
-    ELSE 'CLIMBING'
-  END AS rewards_level
-FROM <PREFIX>_shoe_order_customer_product
-GROUP BY email;
+  user_id,
+  symbol,
+  SUM(CASE WHEN `type` = 'BUY' THEN quantity ELSE -quantity END) AS total_quantity,
+  SUM(CASE WHEN `type` = 'BUY' THEN trade_value ELSE -trade_value END) AS total_investment 
+FROM stock_price_data_product
+GROUP BY user_id, symbol;
 ```
-NOTE: You might need to change the loyalty level numbers according to the amount of the data you have already ingested.
 
-
-Prepare the table for loyalty levels:
+Prepare the table for user holdings:
 ```
-CREATE TABLE <PREFIX>_shoe_loyalty_levels(
-  email STRING,
-  total BIGINT,
-  rewards_level STRING,
-  PRIMARY KEY (email) NOT ENFORCED
+CREATE TABLE user_holdings(
+  user_id STRING,
+  symbol STRING,
+  total_quantity INTEGER,
+  total_investment INTEGER, 
+  PRIMARY KEY (user_id,symbol) NOT ENFORCED
 );
 ```
 
 Now you can calculate loyalty levels and store the results in the new table.
 ```
-INSERT INTO <PREFIX>_shoe_loyalty_levels(
- email,
- total,
- rewards_level)
+INSERT INTO user_holdings
 SELECT
-  email,
-  SUM(sale_price) AS total,
-  CASE
-    WHEN SUM(sale_price) > 80000000 THEN 'GOLD'
-    WHEN SUM(sale_price) > 7000000 THEN 'SILVER'
-    WHEN SUM(sale_price) > 600000 THEN 'BRONZE'
-    ELSE 'CLIMBING'
-  END AS rewards_level
-FROM <PREFIX>_shoe_order_customer_product
-GROUP BY email;
+  user_id,
+  symbol,
+  SUM(CASE WHEN `type` = 'BUY' THEN quantity ELSE -quantity END) AS total_quantity,
+  SUM(CASE WHEN `type` = 'BUY' THEN trade_value ELSE -trade_value END) AS total_investment 
+FROM stock_price_data_product
+GROUP BY user_id, symbol;
 ```
 
 Verify your results:
 ```
-SELECT * FROM <PREFIX>_shoe_loyalty_levels;
+SELECT * FROM user_holdings;
 ```
 
-### 6. Promotions Calculation
+### 6. Trader Leaderboard 🏆
 
-Let's find out if some customers are eligible for special promotions.
-
-Find which customer should receive a special promotion for their 10th order of the same shoe brand.
+Let's find out if top traders.
 ```
+CREATE TABLE top_traders AS
 SELECT
-   email,
-   COUNT(*) AS total,
-   (COUNT(*) % 10) AS sequence,
-   (COUNT(*) % 10) = 0 AS next_one_free
- FROM <PREFIX>_shoe_order_customer_product
- WHERE brand = 'Jones-Stokes'
- GROUP BY email;
+  user_id,
+  COUNT(order_id) AS trade_count,
+  SUM(trade_value) AS total_trade_value
+FROM stock_price_data_productt
+GROUP BY user_id
+ORDER BY total_trade_value DESC
+LIMIT 10;
  ```
-NOTE: We calculate the number of orders of the brand 'Jones-Stokes' for each customer and offer a free product if it's their 10th order.
 
-Find which customers have ordered related brands in large volumes.
-```
+
+### 7. Symbol-Wise Trade Activity (Hourly)⏱️
+
+```sql
+CREATE TABLE hourly_symbol_activity AS
 SELECT
-     email,
-     COLLECT(brand) AS products,
-     'bundle_offer' AS promotion_name
-  FROM <PREFIX>_shoe_order_customer_product
-  WHERE brand IN ('Braun-Bruen', 'Will Inc')
-  GROUP BY email
-  HAVING COUNT(DISTINCT brand) = 2 AND COUNT(brand) > 10;
-```
-NOTE: We sum all orders of brands 'Braun-Bruen' and 'Will Inc' for each customer and offer a special promotion if the sum is larger than ten.  
-
-Now we are ready to store the results for all calculated promotions. 
-
-Create a table for promotion notifications:
-```
-CREATE TABLE <PREFIX>_shoe_promotions(
-  email STRING,
-  promotion_name STRING,
-  PRIMARY KEY (email) NOT ENFORCED
-);
-```
-
-Write both calculated promotions in a single statement set to the `shoe_promotions` table.
-
-```
-EXECUTE STATEMENT SET 
-BEGIN
-
-INSERT INTO <PREFIX>_shoe_promotions
-SELECT
-   email,
-   'next_free' AS promotion_name
-FROM <PREFIX>_shoe_order_customer_product
-WHERE brand = 'Jones-Stokes'
-GROUP BY email
-HAVING COUNT(*) % 10 = 0;
-
-INSERT INTO <PREFIX>_shoe_promotions
-SELECT
-     email,
-     'bundle_offer' AS promotion_name
-  FROM <PREFIX>_shoe_order_customer_product
-  WHERE brand IN ('Braun-Bruen', 'Will Inc')
-  GROUP BY email
-  HAVING COUNT(DISTINCT brand) = 2 AND COUNT(brand) > 10;
-
-END;
-```
-
-
-Check if all promotion notifications are stored correctly.
-```
-SELECT * from <PREFIX>_shoe_promotions;
+  symbol,
+  window_start,
+  SUM(quantity) AS total_volume,
+  SUM(trade_value) AS traded_value
+FROM TABLE(
+  TUMBLE(TABLE stock_price_data_productt, DESCRIPTOR(order_time), INTERVAL '1' HOUR)
+)
+GROUP BY symbol, window_start;
 ```
 
 All data products are created now and events are in motion. Visit the brand new data portal to get all information you need and query the data. Give it a try!
