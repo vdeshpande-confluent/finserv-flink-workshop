@@ -1,0 +1,73 @@
+{
+  "namespace": "finserv",
+  "name": "StockOrders",
+  "doc": "Defines a hypothetical stock order with sequential order ID and relevant order details.",
+  "type": "record",
+  "fields": [
+    {
+      "name": "order_id",
+      "doc": "Sequential order ID starting from 0",
+      "type": {
+        "type": "int",
+        "arg.properties": {
+          "iteration": {
+            "start": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "user_id",
+      "doc": "User placing the order",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["User1", "User2", "User3", "User4", "User5", "User6", "User7", "User8", "User9", "User10"]
+        }
+      }
+    },
+    {
+      "name": "side",
+      "doc": "Order side (BUY, SELL, SHORT)",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["BUY", "SELL", "SHORT"]
+        }
+      }
+    },
+    {
+      "name": "quantity",
+      "doc": "Number of shares",
+      "type": {
+        "type": "int",
+        "arg.properties": {
+          "range": {
+            "min": 1,
+            "max": 10000
+          }
+        }
+      }
+    },
+    {
+      "name": "symbol",
+      "doc": "Stock symbol being ordered",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["AAPL", "GOOG", "AMZN", "MSFT", "TSLA", "META"]
+        }
+      }
+    },
+    {
+      "name": "order_type",
+      "doc": "Type of the order",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["LIMIT", "MARKET", "STOP"]
+        }
+      }
+    }
+  ]
+}
