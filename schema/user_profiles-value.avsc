@@ -1,0 +1,41 @@
+{
+  "namespace": "finserv",
+  "name": "UserProfiles",
+  "doc": "Defines a user profile with basic info and balance.",
+  "type": "record",
+  "fields": [
+    {
+      "name": "user_id",
+      "doc": "User identifier",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["User1", "User2", "User3", "User4", "User5", "User6", "User7", "User8", "User9", "User10"]
+        }
+      }
+    },
+    {
+      "name": "name",
+      "doc": "Full name of the user",
+      "type": "string"
+    },
+    {
+      "name": "email",
+      "doc": "Email address",
+      "type": "string"
+    },
+    {
+      "name": "balance",
+      "doc": "Account balance in pennies",
+      "type": {
+        "type": "int",
+        "arg.properties": {
+          "range": {
+            "min": 0,
+            "max": 10000000
+          }
+        }
+      }
+    }
+  ]
+}
