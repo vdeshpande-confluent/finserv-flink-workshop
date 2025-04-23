@@ -28,26 +28,26 @@ Let's verify if all resources were created correctly and we can start using them
 
 ### Kafka Topics
 Check if the following topics exist in your Kafka cluster:
- * shoe_products (for product data aka Product Catalog),
- * shoe_customers (for customer data aka Customer CRM),
- * shoe_orders (for realtime order transactions aka Billing System).
+ * stock_orders (for stock order trade data),
+ * stock_prices (for dynamic stock price data),
+ * user_profiles (for users data aka user CRM).
 
 ### Schemas in Schema Registry
 Check if the following Avro schemas exist in your Schema Registry:
- * shoe_products-value,
- * shoe_customers-value,
- * shoe_orders-value.
+ * stock_orders-value,
+ * stock_prices-value,
+ * user_profiles-value.
 
 NOTE: Schema Registry is at the Environment level and can be used for multiple Kafka clusters.
 
 ### Datagen Connectors
 Your Kafka cluster should have three Datagen Source Connectors running. Check if their topic and template configurations match the table below.
 
-| Connector Name (can be anything)     |      Topic      | Format |             Template | 
-|--------------------------------------|:---------------:|-------:|---------------------:|
-| **DatagenSourceConnector_products**  |  stock_orders  |   AVRO |            **Trades** | 
-| **DatagenSourceConnector_customers** | stock_prices  |   AVRO |  **Realtime Stock Prices** | 
-| **DatagenSourceConnector_orders**    |   user_profiles   |   AVRO |     **Trade Customers** | 
+| Connector Name (can be anything)     |      Topic      | Format  |             Template      | 
+|--------------------------------------|:---------------:|--------:|--------------------------:|
+| **DatagenSourceConnector_stocks**    | stock_orders    |   AVRO  |  **Trades**               | 
+| **DatagenSourceConnector_prices**    | stock_prices    |   AVRO  | **Realtime Stock Prices** | 
+| **DatagenSourceConnector_users**     | user_profiles   |   AVRO  |  **Trade Customers**      | 
 
 ## 2. Create Pool
 
@@ -83,7 +83,7 @@ You can use your web browser or console to enter Flink SQL statements.
 
 NOTE: You can also access your Flink Compute Pool from the Data Portal as shown below. Just click on `Data Portal` in the main menu on the left side. Then select your Environment. You should see your topics. When you click on any of the topic tiles you can query the topic's data using Flink. 
 
-Data Portal: `shoe_order` topic selected. Click on `Query` button to access your Flink Compute Pool.
+Data Portal: `stock_orders` topic selected. Click on `Query` button to access your Flink Compute Pool.
 ![image](terraform/img/dataPortal2.png)
 
 
@@ -162,7 +162,7 @@ DESCRIBE user_profiles;
 
 Are there any users in user_profiles whose last name starts with `B` ?
 ```
-SELECT * FROM shoe_customers
+SELECT * FROM user_profiles
   WHERE `last_name` LIKE 'B%';
 ```
 
@@ -171,11 +171,11 @@ Check all attributes of the `stock_orders` table including hidden attributes. Th
 DESCRIBE EXTENDED stock_orders;
 ```
 
-Check the first ten orders for one customer.
+Check the first ten stock trades for one customer.
 ```
 SELECT order_id, symbol, type, quantity, order_time
   FROM stock_orders
-  WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a'
+  WHERE user_id = 'User_10'
   LIMIT 10;
 ```
 
@@ -283,7 +283,7 @@ Create a new Flink job to copy customer records from the original table to the n
 ```sql
 INSERT INTO user_profiles_keyed
   SELECT id, first_name, last_name, email
-    FROM shoe_customers;
+    FROM user_profiles;
 ```
 
 Show the amount of users in `user_profiles_keyed`.
@@ -296,7 +296,7 @@ Look up one specific customer (change the id if needed):
 ```sql
 SELECT * 
  FROM user_profiles_keyed  
- WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+ WHERE user_id = 'User_10';
 ```
 
 Compare it with all customer records for one specific customer:
@@ -304,7 +304,7 @@ Compare it with all customer records for one specific customer:
 ```sql
 SELECT *
  FROM user_profiles
- WHERE user_id = 'b523f7f3-0338-4f1f-a951-a387beeb8b6a';
+ WHERE user_id = 'User_10';
 ```
 
 We also need to deduplicate records for our stock price catalog.
@@ -349,9 +349,9 @@ confluent flink statement list --cloud aws --region eu-central-1 --environment <
 #          Creation Date         |        Name        |           Statement            | Compute Pool |  Status   |              Status Detail               
 #--------------------------------+--------------------+--------------------------------+--------------+-----------+------------------------------------------
 #...
-# 2023-11-15 16:14:38 +0000 UTC | f041ae19-c932-403f | CREATE TABLE                   | lfcp-jvv9jq  | COMPLETED | Table 'shoe_customers_keyed'             
-#                                |                    | shoe_customers_keyed(          |              |           | created                                  
-#                                |                    |  customer_id STRING,           |              |           |                                          
+# 2023-11-15 16:14:38 +0000 UTC  | f041ae19-c932-403f  | CREATE TABLE                   | lfcp-jvv9jq  | COMPLETED | Table 'shoe_customers_keyed'             
+#                                |                     | user_profiles_keyed(          |              |           | created                                  
+#                                |                    |  user_id STRING,           |              |           |                                          
 #                                |                    | first_name STRING,   last_name |              |           |                                          
 #                                |                    | STRING,   email STRING,        |              |           |                                          
 #                                |                    | PRIMARY KEY (customer_id) NOT  |              |           |                                          
