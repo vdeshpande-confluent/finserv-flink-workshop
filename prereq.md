@@ -62,9 +62,9 @@ Three topics are created.
 ### Create Sample Data connectors to fill the topics `stock_orders` and `stock_prices` and `user_profiles`
 Confluent has the Datagen connector, which is a testdata generator. In Confluent Cloud a couple Quickstarts (predefinied data) are available and will generate data of a given format.
 NOTE: We use Datagen with following templates:
-* Stock Orders --change
-* Stock Prices --change
-* User Profiles --change
+* Stock Orders [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/stock_orders-value.avsc]
+* Stock Prices [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/stock_prices-value.avsc]
+* User Profiles [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/user_profiles-value.avsc]
 
 Choose the `Connectors` menu entry (left site) and search for `Sample Data`. Click on the Sample Data Icon.
 * Under "Additional configuration" choose topic: `stock_orders` and click `Continue`
