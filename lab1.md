@@ -212,6 +212,16 @@ NOTE: You can find more information about Flink aggregations functions [here.](h
 Let's try Flink's time windowing functions for stock order records.
 Column names “window_start” and “window_end” are commonly used in Flink's window operations, especially when dealing with event time windows.
 
+Find the amount of orders for ten minute intervals advanced by five minutes (hopping window aggregation).
+```sql
+SELECT
+ window_start, window_end,
+ COUNT(DISTINCT order_id) AS num_orders
+FROM TABLE(
+   HOP(TABLE stock_orders, DESCRIPTOR(`$rowtime`), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
+GROUP BY window_start, window_end;
+```
+
 Find the amount of orders for one minute intervals (tumbling window aggregation) for each stock.
 
 ```sql
@@ -228,24 +238,13 @@ Find the average price in the last 5 minutes for each symbol (tumbling window ag
 ```sql
 SELECT
   symbol,
-  TUMBLE_START(`$rowtime`, INTERVAL '5' MINUTE) AS window_start,
+  window_start,
+  window_end,
   AVG(price) AS avg_price
 FROM TABLE(
    TUMBLE(TABLE stock_prices, DESCRIPTOR(`$rowtime`), INTERVAL '1' MINUTES))
 GROUP BY window_start, window_end, symbol;
 ```
-
-Find the amount of orders for ten minute intervals advanced by five minutes (hopping window aggregation).
-
-```sql
-SELECT
- window_start, window_end,
- COUNT(DISTINCT order_id) AS num_orders
-FROM TABLE(
-   HOP(TABLE shoe_orders, DESCRIPTOR(`$rowtime`), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
-GROUP BY window_start, window_end;
-```
-
 
 
 NOTE: You can find more information about Flink Window aggregations [here.](https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.html)
@@ -257,7 +256,7 @@ When you define a primary key in Flink SQL, you specify one or more columns in a
 Let's create a new table to deduplicate records from our user profile' stream. Before creating the table, please attach a unique <PREFIX> to ensure all participants can work within the same cluster without conflicts.
 
 ```sql
-CREATE TABLE user_profiles_keyed (
+CREATE TABLE user_profiles_keyed_and_masked (
   user_id STRING,
   name STRING,
   email STRING,
@@ -281,9 +280,14 @@ NOTE: You can find more information about changelog mode [here.](https://docs.co
 Create a new Flink job to copy customer records from the original table to the new table.
 
 ```sql
-INSERT INTO user_profiles_keyed
-  SELECT id, first_name, last_name, email
-    FROM user_profiles;
+INSERT INTO user_profiles_keyed_and_masked 
+SELECT
+  user_id,
+  name,
+  email,
+  phone,
+  CONCAT('***-**-', SUBSTRING(ssn, 8)) AS ssn
+FROM user_profiles;
 ```
 
 Show the amount of users in `user_profiles_keyed`.
@@ -296,7 +300,7 @@ Look up one specific customer (change the id if needed):
 ```sql
 SELECT * 
  FROM user_profiles_keyed  
- WHERE user_id = 'User_10';
+ WHERE user_id = 'User10';
 ```
 
 Compare it with all customer records for one specific customer:
@@ -304,7 +308,7 @@ Compare it with all customer records for one specific customer:
 ```sql
 SELECT *
  FROM user_profiles
- WHERE user_id = 'User_10';
+ WHERE user_id = 'User10';
 ```
 
 We also need to deduplicate records for our stock price catalog.
@@ -314,8 +318,8 @@ Prepare a new table that will store unique stock only:
 ```sql
 CREATE TABLE stock_prices_keyed (
   symbol STRING,
-  price DOUBLE,
-  event_time TIMESTAMP(3),
+  price INTEGER,
+  `timestamp` BIGINT,
   PRIMARY KEY (symbol) NOT ENFORCED  -- Simulates materialized lookup
 );
 ```
@@ -323,8 +327,8 @@ CREATE TABLE stock_prices_keyed (
 Create a new Flink job to copy product data from the original table to the new table. 
 
 ```sql
-INSERT INTO stock_prices_keyed
-  SELECT *
+INSERT INTO stock_prices_keyed 
+  SELECT symbol,price,`timestamp`
     FROM stock_prices;
 ```
 
@@ -333,7 +337,7 @@ Check if only a single record is returned for some stock.
 ```sql
 SELECT * 
  FROM stock_prices_keyed
- WHERE symbol = '0fd15be0-8b95-4f19-b90b-53aabf4c49df';
+ WHERE symbol = 'GOOG';
 ```
 
 ### 9. Flink Jobs 
@@ -349,13 +353,13 @@ confluent flink statement list --cloud aws --region eu-central-1 --environment <
 #          Creation Date         |        Name        |           Statement            | Compute Pool |  Status   |              Status Detail               
 #--------------------------------+--------------------+--------------------------------+--------------+-----------+------------------------------------------
 #...
-# 2023-11-15 16:14:38 +0000 UTC  | f041ae19-c932-403f  | CREATE TABLE                   | lfcp-jvv9jq  | COMPLETED | Table 'shoe_customers_keyed'             
-#                                |                     | user_profiles_keyed(          |              |           | created                                  
-#                                |                    |  user_id STRING,           |              |           |                                          
-#                                |                    | first_name STRING,   last_name |              |           |                                          
-#                                |                    | STRING,   email STRING,        |              |           |                                          
-#                                |                    | PRIMARY KEY (customer_id) NOT  |              |           |                                          
-#                                |                    | ENFORCED   );                  |              |           |                                          
+# 2023-11-15 16:14:38 +0000 UTC  | f041ae19-c932-403f  | CREATE TABLE                   | lfcp-jvv9jq  | COMPLETED | Table 'user_profiles_keyed'             
+#                                |                     | user_profiles_keyed(           |              |           | created                                  
+#                                |                     |  user_id STRING,               |              |           |                                          
+#                                |                     | name STRING,   email           |              |           |                                          
+#                                |                     | STRING,   ssn STRING,          |              |           |                                          
+#                                |                     | PRIMARY KEY (user_id) NOT      |              |           |                                          
+#                                |                     | ENFORCED   );                  |              |           |                                          
 # ....
 # Exceptions
 confluent flink statement exception list <name> --cloud aws --region eu-central-1 --environment <your env-id>
