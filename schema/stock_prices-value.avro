@@ -1,0 +1,36 @@
+{
+  "namespace": "finserv",
+  "name": "StockPrices",
+  "doc": "Defines a hypothetical stock price update.",
+  "type": "record",
+  "fields": [
+    {
+      "name": "symbol",
+      "doc": "Stock symbol",
+      "type": {
+        "type": "string",
+        "arg.properties": {
+          "options": ["AAPL", "GOOG", "AMZN", "MSFT", "TSLA", "META"]
+        }
+      }
+    },
+    {
+      "name": "price",
+      "doc": "Latest stock price in pennies",
+      "type": {
+        "type": "int",
+        "arg.properties": {
+          "range": {
+            "min": 100,
+            "max": 50000
+          }
+        }
+      }
+    },
+    {
+      "name": "timestamp",
+      "doc": "Timestamp of the price update (epoch ms)",
+      "type": "long"
+    }
+  ]
+}
