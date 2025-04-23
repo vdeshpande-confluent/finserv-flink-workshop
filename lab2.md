@@ -137,7 +137,7 @@ Verify that the data was joined successfully.
 SELECT * FROM stock_price_data_productt;
 ```
 
-### 5. Derive User Holdings (from executed trades) 💼
+###💼 5. Derive User Holdings (from executed trades) 
 
 Now we are ready to calculate net position per user per stock.
 
@@ -180,7 +180,7 @@ Verify your results:
 SELECT * FROM user_holdings;
 ```
 
-### 6. Trader Leaderboard 🏆
+###🏆 6. Trader Leaderboard 
 
 Let's find out if top traders.
 ```
@@ -196,7 +196,7 @@ LIMIT 10;
  ```
 
 
-### 7. Symbol-Wise Trade Activity (Hourly)⏱️
+###⏱️ 7.Symbol-Wise Trade Activity (Hourly)
 
 ```sql
 CREATE TABLE hourly_symbol_activity AS
