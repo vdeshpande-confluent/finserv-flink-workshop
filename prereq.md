@@ -50,6 +50,7 @@ Now, we need three topics to store our events.
 * stock_orders
 * stock_prices
 * user_profiles
+![image](terraform/img/topics.png)
 
 Via the GUI the topic creation is very simple.
 Create Topic by clicking (left.hand menu) Topics and then click `Create topic` button.
