@@ -163,7 +163,7 @@ DESCRIBE user_profiles;
 Are there any users in user_profiles whose last name starts with `B` ?
 ```
 SELECT * FROM user_profiles
-  WHERE `last_name` LIKE 'B%';
+  WHERE `name` LIKE 'B%';
 ```
 
 Check all attributes of the `stock_orders` table including hidden attributes. This will show regular DESCRIBE and system columns.
@@ -173,9 +173,9 @@ DESCRIBE EXTENDED stock_orders;
 
 Check the first ten stock trades for one customer.
 ```
-SELECT order_id, symbol, type, quantity, order_time
+SELECT *
   FROM stock_orders
-  WHERE user_id = 'User_10'
+  WHERE user_id = 'User9'
   LIMIT 10;
 ```
 
