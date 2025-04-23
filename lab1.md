@@ -84,7 +84,7 @@ You can use your web browser or console to enter Flink SQL statements.
 NOTE: You can also access your Flink Compute Pool from the Data Portal as shown below. Just click on `Data Portal` in the main menu on the left side. Then select your Environment. You should see your topics. When you click on any of the topic tiles you can query the topic's data using Flink. 
 
 Data Portal: `stock_orders` topic selected. Click on `Query` button to access your Flink Compute Pool.
-![image](terraform/img/dataPortal2.png)
+![image](terraform/img/stocksdataportal.png)
 
 
 ## 4. Flink Tables
@@ -127,7 +127,7 @@ SHOW TABLES;
 ```
 Do you see tables `stock_orders`, `stock_prices`, `user_profiles`?
 
-![image](terraform/img/show_tables.png)
+![image](terraform/img/showtables.png)
 
 You can add multiple query boxes by clicking the `+` button on the left.
 
@@ -138,7 +138,7 @@ Understand how the table `stock_orders` was created:
 SHOW CREATE TABLE stock_orders;
 ```
 
-![image](terraform/img/sqlWorkspace_showCreated.png)
+![image](terraform/img/showcreatetable.png)
 
 You can find more information about all parameters  [here.](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html)
 
