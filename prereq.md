@@ -50,9 +50,9 @@ The cluster will be up and running in seconds.
 
 ### Create topics in Kafka Cluster `cc_handson_cluster`
 Now, we need three topics to store our events.
-* shoe_products
-* shoe_customers
-* shoe_orders
+* stock_orders
+* stock_prices
+* user_profiles
 
 Via the GUI the topic creation is very simple.
 Create Topic by clicking (left.hand menu) Topics and then click `Create topic` button.
@@ -65,26 +65,26 @@ Three topics are created.
 ### Create Sample Data connectors to fill the topics `show_products` and `shoe_customers` and `shoe_orders`
 Confluent has the Datagen connector, which is a testdata generator. In Confluent Cloud a couple Quickstarts (predefinied data) are available and will generate data of a given format.
 NOTE: We use Datagen with following templates:
-* Shoe Products https://github.com/confluentinc/kafka-connect-datagen/blob/master/src/main/resources/shoes.avro
-* Shoe Customers https://github.com/confluentinc/kafka-connect-datagen/blob/master/src/main/resources/shoe_customers.avro
-* Shoe Orders https://github.com/confluentinc/kafka-connect-datagen/blob/master/src/main/resources/shoe_orders.avro
+* Stock Orders --change
+* Stock Prices --change
+* User Profiles --change
 
 Choose the `Connectors` menu entry (left site) and search for `Sample Data`. Click on the Sample Data Icon.
 * Under "Additional configuration" choose topic: `shoe_products` and click `Continue`
 * Click Global Access (which is already selected by default) and download the API Key. Typically, you will give the connector restrictive access to your resources (what we did in the terraform setup). But for now, it seems to be good enough for hands-on. Click `Generate API Key & Download`, enter a description `Datagen Connector Products` abd click `continue`
-* Select format `AVRO`, because Flink requires AVRO for now, and a template (Show more Option) `Shoes` and  click `Continue`
+* Select format `AVRO`, because Flink requires AVRO for now, and click on Provide your own schema [] and  click `Continue`
 * Check Summary, we will go with one Task (slider) and click `Continue`
-* Enter a name `DSoC_products` and finally click `Continue` 
+* Enter a name `StockOrdersDatagen` and finally click `Continue` 
 
-Now, events will fly in topic `shoe_products` generated from datagen connector `DSoC_products`
+Now, events will fly in topic `stock_orders` generated from datagen connector `StockOrdersDatagen`
 ![image](terraform/img/shoe_products.png)
 
-If you click on `Stream Lineage` (left side) and will see your current data pipeline. Click on topic `shoe_products` and enter the description `Shoe products`. This is how you place metadata to your data product.
+If you click on `Stream Lineage` (left side) and will see your current data pipeline. Click on topic `stock_orders` and enter the description `Stock orders`. This is how you place metadata to your data product.
 ![image](terraform/img/streamlineage.png)
 
 Go back to your Cluster `cc_handson_cluster` and create two more datagen connectors to fill the topics shoe_customers and shoe_orders, go to `Connectors` and click `Add Connector`. Pay attention when you select the template for the datagen connector and ensure, that it corresponds with the before selected topic as shown in the following. Deviations in this step will result in invalid queries at later stages in the workshop.
-* Connector Plug-in `Sample Data`, Topic `shoe_customers`, Global Access amd Download API Key with Description `Datagen Connector Customers`, Format `AVRO`, template `Shoe customers`, 1 Task, Connector Name `DSoC_customers` 
-* Connector Plug-in `Sample Data`, Topic `shoe_orders`, Global Access amd Download API Key with Description `Datagen Connector Orders`, Format `AVRO`, template `Shoe orders`, 1 Task, Connector Name `DSoC_orders` 
+* Connector Plug-in `Sample Data`, Topic `stock_prices`, Global Access amd Download API Key with Description `Datagen Connector Customers`, Format `AVRO`,and click on Provide your own schema [] , 1 Task, Connector Name `StockPricesDatagen` 
+* Connector Plug-in `Sample Data`, Topic `user_profiles`, Global Access amd Download API Key with Description `Datagen Connector Orders`, Format `AVRO`, and click on Provide your own schema [], 1 Task, Connector Name `UserProfileDatagen` 
 
 Three Connectors are up and running and are generating data for us.
 ![image](terraform/img/connectors.png)
