@@ -11,9 +11,11 @@ Finishing Lab 1 is required for Lab 2. If you have not completed it, go back to 
 
 [4. Data Enrichment](lab2.md#4-data-enrichment)
 
-[5. Trader LeaderBoard](lab2.md#5-loyalty-levels-calculation)
+[5. User Holdings](lab2.md#5-user-holdings)
 
-[6. Stocks LeaderBoard](lab2.md#6-promotions-calculation)
+[6. Trader LeaderBoard](lab2.md#6-trader-leaderboard)
+
+[7. Stocks LeaderBoard](lab2.md#7-stocks-leaderboard)
 
 
 
