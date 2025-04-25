@@ -19,18 +19,18 @@ output "cc_kafka_cluster" {
   value       = resource.confluent_kafka_cluster.cc_kafka_cluster.id
 }
 
-output "datagen_products" {
+output "datagen_stock_prices" {
   description = "CC Datagen Products Connector ID"
-  value       = resource.confluent_connector.datagen_products.id
+  value       = resource.confluent_connector.datagen_stock_prices.id
 }
 
-output "datagen_customers" {
+output "datagen_users" {
   description = "CC Datagen Customers Connector ID"
-  value       = resource.confluent_connector.datagen_customers.id
+  value       = resource.confluent_connector.datagen_user_profiles.id
 }
 output "datagen_orders" {
   description = "CC Datagen Orders Connector ID"
-  value       = resource.confluent_connector.datagen_orders.id
+  value       = resource.confluent_connector.datagen_stock_orders.id
 }
 
 output "SRKey" {
@@ -40,7 +40,7 @@ output "SRKey" {
 output "SRSecret" {
   description = "CC SR Secret"
   value       = confluent_api_key.sr_cluster_key.secret
-  sensitive = true
+  sensitive   = true
 }
 
 output "AppManagerKey" {
@@ -50,7 +50,7 @@ output "AppManagerKey" {
 output "AppManagerSecret" {
   description = "CC AppManager Secret"
   value       = confluent_api_key.app_manager_kafka_cluster_key.secret
-  sensitive = true
+  sensitive   = true
 }
 
 output "ClientKey" {
@@ -60,5 +60,5 @@ output "ClientKey" {
 output "ClientSecret" {
   description = "CC Client Secret"
   value       = confluent_api_key.clients_kafka_cluster_key.secret
-  sensitive = true
+  sensitive   = true
 }
