@@ -14,9 +14,9 @@ We will deploy with terraform:
  - Confluent Cloud Basic Cloud: cc_handson_cluster
     - in AWS in region (eu-central-1)
  - Connectors:
-    - Datagen for shoe_products
-    - Datagen for shoe_customers 
-    - Datagen for show_orders
+    - Datagen for stock_orders
+    - Datagen for stock_prices 
+    - Datagen for user_profiles
  - Service Accounts
     - app_manager-XXXX with Role EnvironmentAdmin
     - sr-XXXX with Role EnvironmentAdmin
@@ -83,8 +83,8 @@ This tutorial was developed with Confluent CLI v3.41.0 and run on lates: v4.9.8
 Clone the repo on your desktop.
 ```bash
 cd $HOME # or where-ever directory you want to use
-git clone https://github.com/griga23/shoe-store.git
-cd shoe-store
+git clone https://github.com/vdeshpande-confluent/finserv-flink-demo.git
+cd finserv-flink-demo
 ```
 
 ## Create Confluent Cloud Resource management API Keys
