@@ -18,7 +18,7 @@ resource "confluent_kafka_acl" "connectors_source_create_topic_demo" {
     id = confluent_kafka_cluster.cc_kafka_cluster.id
   }
   resource_type = "TOPIC"
-  resource_name = "stock_"
+  resource_name = "*"
   pattern_type  = "PREFIXED"
   principal     = "User:${confluent_service_account.connectors.id}"
   operation     = "CREATE"
@@ -39,7 +39,7 @@ resource "confluent_kafka_acl" "connectors_source_write_topic_demo" {
     id = confluent_kafka_cluster.cc_kafka_cluster.id
   }
   resource_type = "TOPIC"
-  resource_name = "stock_"
+  resource_name = "*"
   pattern_type  = "PREFIXED"
   principal     = "User:${confluent_service_account.connectors.id}"
   operation     = "WRITE"
@@ -60,7 +60,7 @@ resource "confluent_kafka_acl" "connectors_source_read_topic_demo" {
     id = confluent_kafka_cluster.cc_kafka_cluster.id
   }
   resource_type = "TOPIC"
-  resource_name = "stock_"
+  resource_name = "*"
   pattern_type  = "PREFIXED"
   principal     = "User:${confluent_service_account.connectors.id}"
   operation     = "READ"
