@@ -19,7 +19,7 @@ If you prefer, you can deploy the complete finished workshop using Terraform. Pl
 
 Together, the labs will design a real-time financial insights engine within Flink SQL. Below is a mapping of dynamic tables and topics used throughout the workshop.
 
-![image](terraform/img/dataflow.png)
+![image](terraform/img/Dataflow.png)
 
 ## Optional: Complete Workshop Setup with Terraform
 You can deploy the entire finished workshop using Terraform. Please follow the [guide](terraform-complete/README.md) to set up a fully functional financial insights pipeline. The only manual setup required is the notification system.
