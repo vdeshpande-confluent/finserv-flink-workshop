@@ -167,7 +167,7 @@ JOIN user_profiles_keyed_and_masked FOR SYSTEM_TIME AS OF o.`$rowtime` AS u
 
 Verify that the data was joined successfully. 
 ```
-SELECT * FROM stock_price_data_productt;
+SELECT * FROM stock_price_data_product;
 ```
 
 ### 💼 5. Derive User Holdings
