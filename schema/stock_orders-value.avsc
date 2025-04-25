@@ -61,7 +61,7 @@
     },
     {
       "name": "order_type",
-      "doc": "Type of the order",
+      "doc": "How the order to be executed in the market",
       "type": {
         "type": "string",
         "arg.properties": {
