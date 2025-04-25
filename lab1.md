@@ -170,8 +170,9 @@ Check all attributes of the `stock_orders` table including hidden attributes. Th
 ```
 DESCRIBE EXTENDED stock_orders;
 ```
+Noticed the `$rowtime`, a system column in Apache Flink SQL that captures the event-time timestamp of a Kafka record. In our use case, this will represent the exact time an order was created or placed, which will be leveraged in downstream transformations and time-based analytics.
 
-Check the first ten stock trades for one customer.
+Now let's check the first ten stock trades for one user.
 ```
 SELECT *
   FROM stock_orders
@@ -191,10 +192,12 @@ SELECT COUNT(user_id) AS num_users FROM user_profiles;
 ```sql
 SELECT COUNT(DISTINCT user_id) AS num_users FROM user_profiles;
 ```
+Noticed a difference in the results between the two queries above:
+This is because user_profiles is a continuous event stream capturing updates for users over time—resulting in multiple records per user. However, our goal is to track only the unique set of customers.
+We’ll address this by creating a materialized view in Section 8 to maintain the latest profile per unique user.
 
-We can try some basic aggregations with the stock catalog records.
+For now let's try some basic aggregations with the stock catalog records.
 For each stock let's detect volatility or price range, find the min and max price for that stock. 
-
 ```sql
 SELECT
   symbol,
@@ -204,23 +207,12 @@ FROM stock_prices
 GROUP BY symbol;
 ```
 
-
 NOTE: You can find more information about Flink aggregations functions [here.](https://docs.confluent.io/cloud/current/flink/reference/functions/aggregate-functions.html)
 
 ### 7. Time Windows
 
 Let's try Flink's time windowing functions for stock order records.
 Column names “window_start” and “window_end” are commonly used in Flink's window operations, especially when dealing with event time windows.
-
-Find the amount of orders for ten minute intervals advanced by five minutes (hopping window aggregation).
-```sql
-SELECT
- window_start, window_end,
- COUNT(DISTINCT order_id) AS num_orders
-FROM TABLE(
-   HOP(TABLE stock_orders, DESCRIPTOR(`$rowtime`), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
-GROUP BY window_start, window_end;
-```
 
 Find the amount of orders for one minute intervals (tumbling window aggregation) for each stock.
 
@@ -245,7 +237,15 @@ FROM TABLE(
    TUMBLE(TABLE stock_prices, DESCRIPTOR(`$rowtime`), INTERVAL '1' MINUTES))
 GROUP BY window_start, window_end, symbol;
 ```
-
+Find the amount of stock trades for ten minute intervals advanced by five minutes (hopping window aggregation).
+```sql
+SELECT
+ window_start, window_end,
+ COUNT(DISTINCT order_id) AS num_orders
+FROM TABLE(
+   HOP(TABLE stock_orders, DESCRIPTOR(`$rowtime`), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
+GROUP BY window_start, window_end;
+```
 
 NOTE: You can find more information about Flink Window aggregations [here.](https://docs.confluent.io/cloud/current/flink/reference/queries/window-tvf.html)
 
@@ -253,8 +253,10 @@ NOTE: You can find more information about Flink Window aggregations [here.](http
 
 When you define a primary key in Flink SQL, you specify one or more columns in a table that uniquely identify each row. This is particularly important in streaming scenarios, where state must be correctly maintained.
 
-Let's create a new table to deduplicate records from our user profile' stream. Before creating the table, please attach a unique <PREFIX> to ensure all participants can work within the same cluster without conflicts.
+Let's create a new table that deduplicates records from our user_profiles stream. 
+Also, you may have noticed the presence of an `ssn` field in the `user_profiles` table. We'll take this opportunity to apply masking to the SSN as part of the transformation.
 
+Note : Attaching a unique <PREFIX> to the table name will ensures that multiple participants can work in the same cluster without naming conflicts.
 ```sql
 CREATE TABLE user_profiles_keyed_and_masked (
   user_id STRING,
@@ -277,7 +279,7 @@ We do have a different [changelog.mode](https://docs.confluent.io/cloud/current/
 
 NOTE: You can find more information about changelog mode [here.](https://docs.confluent.io/cloud/current/flink/concepts/dynamic-tables.html#changelog-entries)
 
-Create a new Flink job to copy customer records from the original table to the new table.
+Create a new Flink job to copy customer records from the original table to the new table with masked ssn.
 
 ```sql
 INSERT INTO user_profiles_keyed_and_masked 
@@ -290,16 +292,16 @@ SELECT
 FROM user_profiles;
 ```
 
-Show the amount of users in `user_profiles_keyed`.
+Show the amount of users in `user_profiles_keyed_and_masked`.
 ```
-SELECT COUNT(*) as AMOUNTROWS FROM user_profiles_keyed;
+SELECT COUNT(*) as AMOUNTROWS FROM user_profiles_keyed_and_masked;
 ```
 
 Look up one specific customer (change the id if needed):
 
 ```sql
 SELECT * 
- FROM user_profiles_keyed  
+ FROM user_profiles_keyed_and_masked  
  WHERE user_id = 'User10';
 ```
 
@@ -313,7 +315,7 @@ SELECT *
 
 We also need to deduplicate records for our stock price catalog.
 
-Prepare a new table that will store unique stock only:
+Let's prepare a new table that will store unique stock only:
 
 ```sql
 CREATE TABLE stock_prices_keyed (
