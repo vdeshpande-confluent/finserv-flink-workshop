@@ -272,7 +272,7 @@ CREATE TABLE user_profiles_keyed_and_masked (
  * PRIMARY KEY (user_id) NOT ENFORCED specifies the primary key constraint. In Flink SQL, primary keys are currently not enforced by default due to the challenges of ensuring uniqueness across distributed systems. The NOT ENFORCED clause reflects this, indicating that while the primary key is used for optimizations and correct processing, it does not guarantee data uniqueness constraints as a traditional database might.
 
 ```bash
-SHOW CREATE TABLE user_profiles_keyed;
+SHOW CREATE TABLE user_profiles_keyed_and_masked;
 ```
 
 We do have a different [changelog.mode](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html#changelog-mode) and a [primary key](https://docs.confluent.io/cloud/current/flink/reference/statements/create-table.html#primary-key-constraint) constraint. What does this mean?
