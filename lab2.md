@@ -53,6 +53,7 @@ SELECT symbol,$rowtime
 FROM stock_prices  
 WHERE symbol = 'GOOG';
 ```
+
 ### 3. Understand Joins
 Now, we can look at the different types of joins available. 
 We will join `stock_orders` records and `stock_prices` records.
@@ -113,8 +114,29 @@ We can store the result of a join in a new table.
 We will join data from: User Profile , Order, Prices tables together in a single SQL statement.
 
 Create a new table for `Stock Orders <-> Users Profile <-> Stock Prices` join result:
+
+```sql
+CREATE TABLE stock_price_data_product (
+  order_id INT,
+  user_id STRING,
+  user_name STRING,
+  user_email STRING,
+  user_phone STRING,
+  symbol STRING,
+  side STRING,
+  order_type STRING, 
+  quantity INT,
+  executed_price DOUBLE,
+  trade_value DOUBLE,
+  order_time TIMESTAMP(3),
+  WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+);
 ```
-CREATE TABLE stock_price_data_product AS  
+
+Now create a new Flink job to join all three tables `Stock Orders <-> Users Profile <-> Stock Prices` and insert data into `stock_price_data_product` table .
+
+```
+INSERT INTO stock_price_data_product
 SELECT
   o.order_id,
   o.user_id,
@@ -122,9 +144,12 @@ SELECT
   u.email AS user_email,
   u.phone AS user_phone,
   o.symbol,
+  o.side,
+  o.order_type,
   o.quantity,
   p.price AS executed_price,
-  o.quantity * p.price AS trade_value
+  o.quantity * p.price AS trade_value,
+  o.`$rowtime` AS order_time
 FROM stock_orders AS o
 JOIN stock_prices_keyed FOR SYSTEM_TIME AS OF o.`$rowtime` AS p
   ON o.symbol = p.symbol
