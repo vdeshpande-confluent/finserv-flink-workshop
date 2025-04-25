@@ -263,8 +263,7 @@ ORDER BY total_trade_value DESC
 LIMIT 10;
  ```
 
-
-### ⏱️ 7.Symbol-Wise Trade Activity with Over Aggregation (Trending Stocks)
+### 🏆 7. Stocks  Leaderboard 
 Let's create a table to track the trade activity of each stock on an hourly basis, and then apply an over aggregation to capture trending stocks based on the most recent trading activity.
 This will help identify which stocks are trending in terms of trading volume and value.
 ```sql
