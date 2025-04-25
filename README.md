@@ -6,7 +6,7 @@ To get the most out of this workshop, please read this [Guide to Flink SQL: An I
 
 In this workshop, we will build a Financial Services Data Pipeline with Flink SQL on Confluent Cloud. We’ll process financial transactions in real-time, provide insights, and track key metrics like account balances and transaction summaries. Below is an architecture diagram for the FinServ pipeline:
 
-![image](terraform/img/Flink_Hands-on_Workshop_FinServ.png)
+![image](terraform/img/highlevelarch.png)
 
 ## Required Confluent Cloud Resources
 This hands-on workshop consists of two labs (see below), which require Confluent Cloud infrastructure to be provisioned before starting the workshop. You can either set up the resources manually by following this [guide](prereq.md) or automate the provisioning using Terraform with this [guide](terraform/README.md).
