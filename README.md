@@ -24,9 +24,6 @@ Together, the labs will design a real-time financial insights engine within Flin
 ## Optional: Complete Workshop Setup with Terraform
 You can deploy the entire finished workshop using Terraform. Please follow the [guide](terraform-complete/README.md) to set up a fully functional financial insights pipeline. The only manual setup required is the notification system.
 
-## Notification Client
-You can find the Python Notification client in this [guide](notification_client.md).
-
 ## Costs of this Confluent Cloud - Flink SQL FinServ Workshop
 The lab execution costs are minimal. We estimate the cost to be less than $10 for a few hours of testing. If you create the cluster a day before, we recommend pausing all connectors when not in use to save costs.
 
