@@ -11,11 +11,11 @@ Finishing Lab 1 is required for Lab 2. If you have not completed it, go back to 
 
 [4. Data Enrichment](lab2.md#4-data-enrichment)
 
-[💼 5. Derive User Holdings](lab2.md#5-user-holdings)
+[5. Derive User Holdings](lab2.md#5-user-holdings)
 
-[🏆 6. Trader Leaderboard](lab2.md#6-trader-leaderboard)
+[6. Trader Leaderboard](lab2.md#6-trader-leaderboard)
 
-[🏆 7. Stocks  Leaderboard](lab2.md#7-stocks-leaderboard)
+[7. Stocks Leaderboard](lab2.md#7-stocks-leaderboard)
 
 
 
