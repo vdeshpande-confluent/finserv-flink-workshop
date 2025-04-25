@@ -79,17 +79,17 @@ variable "sr_package" {
 # --------------------------------------------
 # Confluent Cloud Connectors name
 # --------------------------------------------
-variable "cc_connector_dsoc_products_name" {
+variable "cc_connector_stocks_name" {
   type    = string
-  default = "DSoC_products"
+  default = "DatagenSourceConnector_stocks"
 }
 
-variable "cc_connector_dsoc_customers_name" {
+variable "cc_connector_prices_name" {
   type    = string
-  default = "DSoC_customers"
+  default = "DatagenSourceConnector_prices"
 }
 
-variable "cc_connector_dsoc_orders_name" {
+variable "cc_connector_users_name" {
   type    = string
-  default = "DSoC_orders"
+  default = "DatagenSourceConnector_users"
 }
