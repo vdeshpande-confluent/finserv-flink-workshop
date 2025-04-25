@@ -299,7 +299,7 @@ This lets you track short-term surges in activity—perfect for identifying mome
 
 All data products are created now and events are in motion. Visit the brand new data portal to get all information you need and query the data. Give it a try!
 
-![image](terraform/img/dataportal.png)
+![image](terraform/img/stocksdataportal.png)
 
 ## End of Lab2.
 
