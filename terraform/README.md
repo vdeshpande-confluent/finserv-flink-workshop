@@ -23,7 +23,7 @@ We will deploy with terraform:
     - clients-XXXX with Role CloudClusterAdmin
     - connectors-XXXX
  
-![image](img/terraform_deployment.png)
+![image](img/terraform_deployment_1.png)
 
 # Pre-requisites
 - User account on [Confluent Cloud](https://www.confluent.io/confluent-cloud/tryfree)
@@ -139,7 +139,7 @@ To continue with the UI:
 
 You deployed:
 
-![image](img/terraform_deployment.png)
+![image](img/terraform_deployment_1.png)
 
 You are ready to [start with LAB1](../lab1.md)
 
