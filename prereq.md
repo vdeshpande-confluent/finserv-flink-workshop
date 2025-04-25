@@ -62,17 +62,17 @@ Three topics are created.
 
 ### Create Sample Data connectors to fill the topics `stock_orders` and `stock_prices` and `user_profiles`
 Confluent has the Datagen connector, which is a testdata generator. In Confluent Cloud a couple Quickstarts (predefinied data) are available and will generate data of a given format.
-NOTE: We use Datagen with following templates:
+NOTE: We use Datagen with following custom schema templates:
 * Stock Orders [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/stock_orders-value.avsc]
 * Stock Prices [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/stock_prices-value.avsc]
 * User Profiles [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/user_profiles-value.avsc]
 
 Choose the `Connectors` menu entry (left site) and search for `Sample Data`. Click on the Sample Data Icon.
 * Under "Additional configuration" choose topic: `stock_orders` and click `Continue`
-* Click Global Access (which is already selected by default) and download the API Key. Typically, you will give the connector restrictive access to your resources (what we did in the terraform setup). But for now, it seems to be good enough for hands-on. Click `Generate API Key & Download`, enter a description `Datagen Connector Products` abd click `continue`
-* Select format `AVRO`, because Flink requires AVRO for now, and click on Provide your own schema [] and  click `Continue`
+* Click Global Access (which is already selected by default) and download the API Key. Typically, you will give the connector restrictive access to your resources (what we did in the terraform setup). But for now, it seems to be good enough for hands-on. Click `Generate API Key & Download`, enter a description `Datagen Connector Stock Trades` abd click `continue`
+* Select format `AVRO`, because Flink requires AVRO for now, and click on Provide your own schema [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/stock_orders-value.avsc] and  click `Continue`
 * Check Summary, we will go with one Task (slider) and click `Continue`
-* Enter a name `StockOrdersDatagen` and finally click `Continue` 
+* Enter a name `DatagenSourceConnector_stocks` and finally click `Continue` 
 
 Now, events will fly in topic `stock_orders` generated from datagen connector `DatagenSourceConnector_stocks`
 
@@ -80,9 +80,9 @@ Now, events will fly in topic `stock_orders` generated from datagen connector `D
 If you click on `Stream Lineage` (left side) and will see your current data pipeline. Click on topic `stock_orders` and enter the description `Datagen Connector Stock orders`. This is how you place metadata to your data product.
 
 
-Go back to your Cluster `cc_handson_cluster` and create two more datagen connectors to fill the topics stock_prices and user_profiles, go to `Connectors` and click `Add Connector`. Pay attention when you select the template for the datagen connector and ensure, that it corresponds with the before selected topic as shown in the following. Deviations in this step will result in invalid queries at later stages in the workshop.
-* Connector Plug-in `Sample Data`, Topic `stock_prices`, Global Access amd Download API Key with Description `Datagen Connector Stock Prices`, Format `AVRO`,and click on Provide your own schema [] , 1 Task, Connector Name `DatagenSourceConnector_prices` 
-* Connector Plug-in `Sample Data`, Topic `user_profiles`, Global Access amd Download API Key with Description `Datagen Connector User Profiles`, Format `AVRO`, and click on Provide your own schema [], 1 Task, Connector Name `DatagenSourceConnector_users` 
+Go back to your Cluster `cc_handson_cluster` and create two more datagen connectors to fill the topics stock_prices and user_profiles, go to `Connectors` and click `Add Connector`. Pay attention when you select the template for the datagen connector and ensure, that it you click on **Provide your own schema**. Deviations in this step will result in invalid queries at later stages in the workshop.
+* Connector Plug-in `Sample Data`, Topic `stock_prices`, Global Access amd Download API Key with Description `Datagen Connector Stock Prices`, Format `AVRO`,and click on Provide your own schema [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/stock_prices-value.avsc] , 1 Task, Connector Name `DatagenSourceConnector_prices` 
+* Connector Plug-in `Sample Data`, Topic `user_profiles`, Global Access amd Download API Key with Description `Datagen Connector User Profiles`, Format `AVRO`, and click on Provide your own schema [https://github.com/vdeshpande-confluent/finserv-flink-demo/blob/main/schema/user_profiles-value.avsc], 1 Task, Connector Name `DatagenSourceConnector_users` 
 
 Three Connectors are up and running and are generating data for us.
 
