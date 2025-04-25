@@ -19,7 +19,7 @@ resource "confluent_kafka_acl" "connectors_source_create_topic_demo" {
   }
   resource_type = "TOPIC"
   resource_name = "*"
-  pattern_type  = "PREFIXED"
+  pattern_type  = "LITERAL"
   principal     = "User:${confluent_service_account.connectors.id}"
   operation     = "CREATE"
   permission    = "ALLOW"
@@ -40,7 +40,7 @@ resource "confluent_kafka_acl" "connectors_source_write_topic_demo" {
   }
   resource_type = "TOPIC"
   resource_name = "*"
-  pattern_type  = "PREFIXED"
+  pattern_type  = "LITERAL"
   principal     = "User:${confluent_service_account.connectors.id}"
   operation     = "WRITE"
   permission    = "ALLOW"
@@ -61,7 +61,7 @@ resource "confluent_kafka_acl" "connectors_source_read_topic_demo" {
   }
   resource_type = "TOPIC"
   resource_name = "*"
-  pattern_type  = "PREFIXED"
+  pattern_type  = "LITERAL"
   principal     = "User:${confluent_service_account.connectors.id}"
   operation     = "READ"
   permission    = "ALLOW"
