@@ -85,13 +85,17 @@ WHERE order_id = 955 AND
 
 Join orders with keyed stock price records (Regular Join with Keyed Table):
 ```
-SELECT order_id, so.`$rowtime`,symbol,user_id,side,quantity,order_type
+SELECT order_id, so.`$rowtime`,so.symbol,user_id,side,quantity,order_type
 FROM stock_orders as so
 INNER JOIN stock_prices_keyed as spk
 ON so.symbol = spk.symbol
 WHERE so.order_id = 955;
 ```
-NOTE: Look at the number of rows returned. There are no duplicates! This is because we have only one price record for each symbol.
+NOTE: You might notice that the number of rows returned has no duplicates. This is because there's only one price record per symbol.
+
+But is that truly what we want?
+
+Not quite — what we really want is to fetch the price that was valid at the exact time the order was placed. That’s what we’ll implement next using time-versioned joins.
 
 Join orders with keyed stock price records at the time when order was created (Temporal Join with Keyed Table):
 ```
@@ -132,6 +136,8 @@ CREATE TABLE stock_price_data_product (
   WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 );
 ```
+Noticed the `WATERMARK` clause - it is used to handle event-time processing in Flink. By specifying WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND, we define a watermark for the order_time field. This watermark ensures that any event with a timestamp that is more than 5 seconds behind the current processing time is considered late. Watermarks help Flink handle out-of-order events and allow for more accurate event-time processing.
+You can read more about watermarks and event time [here.](https://docs.confluent.io/cloud/current/flink/concepts/timely-stream-processing.html#event-time-and-watermarks)
 
 Now create a new Flink job to join all three tables `Stock Orders <-> Users Profile <-> Stock Prices` and insert data into `stock_price_data_product` table .
 
@@ -153,7 +159,7 @@ SELECT
 FROM stock_orders AS o
 JOIN stock_prices_keyed FOR SYSTEM_TIME AS OF o.`$rowtime` AS p
   ON o.symbol = p.symbol
-JOIN user_profiles_keyed FOR SYSTEM_TIME AS OF o.`$rowtime` AS u
+JOIN user_profiles_keyed_and_masked FOR SYSTEM_TIME AS OF o.`$rowtime` AS u
   ON o.user_id = u.user_id;
 ```
 
@@ -170,21 +176,42 @@ Let's see :
 ```
 SELECT
   user_id,
+  user_name,
+  user_email,
+  user_phone,
   symbol,
-  SUM(CASE WHEN `type` = 'BUY' THEN quantity ELSE -quantity END) AS total_quantity,
-  SUM(CASE WHEN `type` = 'BUY' THEN trade_value ELSE -trade_value END) AS total_investment 
-FROM stock_price_data_product
-GROUP BY user_id, symbol;
+  
+  -- Adjust net quantity based on side
+  SUM(CASE WHEN side = 'BUY' THEN quantity
+           WHEN side = 'SELL' THEN -quantity
+           WHEN side = 'SHORT' THEN -quantity
+           ELSE 0 END) AS net_quantity,
+  
+  -- Calculate weighted average buy price only for BUYs
+  SUM(CASE WHEN side = 'BUY' THEN executed_price * quantity ELSE 0 END)
+    / NULLIF(SUM(CASE WHEN side = 'BUY' THEN quantity ELSE 0 END), 0) AS avg_buy_price,
+
+  -- Total amount invested (BUY only)
+  SUM(CASE WHEN side = 'BUY' THEN executed_price * quantity ELSE 0 END) AS total_invested,
+
+  MAX(`$rowtime`) AS last_updated
+FROM stock_price_data_product 
+GROUP BY user_id, user_name, user_email, user_phone, symbol;
 ```
 
 Prepare the table for user holdings:
 ```
-CREATE TABLE user_holdings(
+CREATE TABLE user_holdings (
   user_id STRING,
   symbol STRING,
-  total_quantity INTEGER,
-  total_investment INTEGER, 
-  PRIMARY KEY (user_id,symbol) NOT ENFORCED
+  user_name STRING,
+  user_email STRING,
+  user_phone STRING,  
+  net_quantity BIGINT,
+  avg_buy_price DOUBLE,
+  total_invested DOUBLE,
+  last_updated TIMESTAMP(3),
+  PRIMARY KEY (user_id, symbol) NOT ENFORCED
 );
 ```
 
@@ -193,11 +220,27 @@ Now you can calculate loyalty levels and store the results in the new table.
 INSERT INTO user_holdings
 SELECT
   user_id,
+  user_name,
+  user_email,
+  user_phone,
   symbol,
-  SUM(CASE WHEN `type` = 'BUY' THEN quantity ELSE -quantity END) AS total_quantity,
-  SUM(CASE WHEN `type` = 'BUY' THEN trade_value ELSE -trade_value END) AS total_investment 
-FROM stock_price_data_product
-GROUP BY user_id, symbol;
+  
+  -- Adjust net quantity based on side
+  SUM(CASE WHEN side = 'BUY' THEN quantity
+           WHEN side = 'SELL' THEN -quantity
+           WHEN side = 'SHORT' THEN -quantity
+           ELSE 0 END) AS net_quantity,
+  
+  -- Calculate weighted average buy price only for BUYs
+  SUM(CASE WHEN side = 'BUY' THEN executed_price * quantity ELSE 0 END)
+    / NULLIF(SUM(CASE WHEN side = 'BUY' THEN quantity ELSE 0 END), 0) AS avg_buy_price,
+
+  -- Total amount invested (BUY only)
+  SUM(CASE WHEN side = 'BUY' THEN executed_price * quantity ELSE 0 END) AS total_invested,
+
+  MAX(`$rowtime`) AS last_updated
+FROM stock_price_data_product 
+GROUP BY user_id, user_name, user_email, user_phone, symbol;
 ```
 
 Verify your results:
@@ -214,27 +257,44 @@ SELECT
   user_id,
   COUNT(order_id) AS trade_count,
   SUM(trade_value) AS total_trade_value
-FROM stock_price_data_productt
+FROM stock_price_data_product
 GROUP BY user_id
 ORDER BY total_trade_value DESC
 LIMIT 10;
  ```
 
 
-### ⏱️ 7.Symbol-Wise Trade Activity (Hourly)
-
+### ⏱️ 7.Symbol-Wise Trade Activity with Over Aggregation (Trending Stocks)
+Let's create a table to track the trade activity of each stock on an hourly basis, and then apply an over aggregation to capture trending stocks based on the most recent trading activity.
+This will help identify which stocks are trending in terms of trading volume and value.
 ```sql
-CREATE TABLE hourly_symbol_activity AS
+CREATE TABLE symbol_trending_activity AS
 SELECT
   symbol,
-  window_start,
-  SUM(quantity) AS total_volume,
-  SUM(trade_value) AS traded_value
-FROM TABLE(
-  TUMBLE(TABLE stock_price_data_productt, DESCRIPTOR(order_time), INTERVAL '1' HOUR)
-)
-GROUP BY symbol, window_start;
+  order_time,
+  quantity,
+  trade_value,
+
+  -- Rolling sum of trade volume per symbol for the last 5 rows
+  SUM(quantity) OVER (
+    PARTITION BY symbol 
+    ORDER BY order_time 
+    ROWS BETWEEN 4 PRECEDING AND CURRENT ROW
+  ) AS rolling_volume,
+
+  -- Rolling trade value for last 5 trades of each symbol
+  SUM(trade_value) OVER (
+    PARTITION BY symbol 
+    ORDER BY order_time 
+    ROWS BETWEEN 4 PRECEDING AND CURRENT ROW
+  ) AS rolling_trade_value
+FROM stock_price_data_product;
+
 ```
+- PARTITION BY symbol: ensures aggregation happens per stock.
+- ORDER BY order_time: sorts trades chronologically.
+- ROWS BETWEEN 4 PRECEDING AND CURRENT ROW: creates a rolling window of the latest 5 trades.
+This lets you track short-term surges in activity—perfect for identifying momentum trends. Read more about over aggregation [here.](https://docs.confluent.io/cloud/current/flink/reference/queries/over-aggregation.html) 
 
 All data products are created now and events are in motion. Visit the brand new data portal to get all information you need and query the data. Give it a try!
 
