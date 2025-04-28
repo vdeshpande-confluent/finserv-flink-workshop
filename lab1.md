@@ -219,6 +219,7 @@ Find the amount of orders for one minute intervals (tumbling window aggregation)
 ```sql
 SELECT
  window_end,
+ symbol,
  COUNT(DISTINCT order_id) AS num_orders
 FROM TABLE(
    TUMBLE(TABLE stock_orders, DESCRIPTOR(`$rowtime`), INTERVAL '1' MINUTES))
