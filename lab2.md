@@ -217,7 +217,7 @@ CREATE TABLE user_holdings (
 );
 ```
 
-Now you can calculate loyalty levels and store the results in the new table.
+Now you can calculate the positional holdings of the users and store the results in the new table.
 ```
 INSERT INTO user_holdings
 SELECT
