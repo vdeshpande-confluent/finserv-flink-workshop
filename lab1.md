@@ -235,7 +235,7 @@ SELECT
   window_end,
   AVG(price) AS avg_price
 FROM TABLE(
-   TUMBLE(TABLE stock_prices, DESCRIPTOR(`$rowtime`), INTERVAL '1' MINUTES))
+   TUMBLE(TABLE stock_prices, DESCRIPTOR(`$rowtime`), INTERVAL '5' MINUTES))
 GROUP BY window_start, window_end, symbol;
 ```
 Find the amount of stock trades for ten minute intervals advanced by five minutes (hopping window aggregation).
